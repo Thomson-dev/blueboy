@@ -21,7 +21,7 @@ function ActionButton({ text, primary }: { text: string; primary: boolean }) {
   );
 }
 
-export const MusicCard: React.FC<MusicCardProps> = ({ item, index }) => {
+export const MusicCard: React.FC<MusicCardProps> = ({ item }) => {
   const [hovered, setHovered] = useState(false);
 
   return (
