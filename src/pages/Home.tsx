@@ -1,16 +1,28 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useContent } from "../context/ContentContext";
+import { getHero, getReleases, fetchStreamingLinks, type Release, type OdesliLinks } from "../lib/api";
 
-const style = `
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function renderTitle(title: string) {
+  return title.split("\n").map((line, i, arr) => (
+    <span key={i}>{line}{i < arr.length - 1 && <br />}</span>
+  ));
+}
+
+// ─── Styles ───────────────────────────────────────────────────────────────────
+
+const globalStyle = `
   @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@400;600;700;800;900&display=swap');
 
   :root {
-    --clr-bg: #030a04;
-    --clr-main: hsla(130, 15%, 90%, 1);
-    --clr-main-50: hsla(130, 15%, 90%, 0.5);
-    --clr-main-10: hsla(130, 15%, 90%, 0.1);
-    --clr-accent: hsl(142, 100%, 38%);
-    --ff-display: 'Bebas Neue', sans-serif;
-    --ff-body: 'Barlow Condensed', sans-serif;
+    --clr-bg:       #030a04;
+    --clr-main:     hsla(130, 15%, 90%, 1);
+    --clr-main-50:  hsla(130, 15%, 90%, 0.5);
+    --clr-main-10:  hsla(130, 15%, 90%, 0.1);
+    --clr-accent:   hsl(142, 100%, 38%);
+    --ff-display:   'Bebas Neue', sans-serif;
+    --ff-body:      'Barlow Condensed', sans-serif;
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -23,7 +35,7 @@ const style = `
     min-height: 100vh;
   }
 
-  /* ── NAV ── */
+  /* NAV */
   .wk-nav {
     background: var(--clr-accent);
     display: flex;
@@ -43,7 +55,7 @@ const style = `
   }
   .wk-nav a:hover { opacity: 0.7; }
 
-  /* ── HERO ── */
+  /* HERO */
   .wk-hero {
     position: relative;
     width: 100%;
@@ -51,12 +63,21 @@ const style = `
     overflow: hidden;
     background: #111;
   }
-  .wk-hero-bg {
+  .wk-hero-placeholder {
     width: 100%;
     height: 100%;
-    object-fit: cover;
-    filter: grayscale(100%);
-    display: block;
+    background: linear-gradient(135deg, #0a1a0a 0%, #030a04 50%, #051a0a 100%);
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding-right: 12%;
+    position: relative;
+  }
+  .wk-hero-placeholder::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at 30% 60%, rgba(0,160,60,0.12) 0%, transparent 60%);
   }
   .wk-hero-bottom-bar {
     position: absolute;
@@ -83,6 +104,8 @@ const style = `
     letter-spacing: 4px;
     color: var(--clr-main);
   }
+
+  /* BUTTON */
   .wk-btn {
     display: inline-block;
     border: 2px solid var(--clr-main);
@@ -99,10 +122,8 @@ const style = `
   }
   .wk-btn:hover { background: var(--clr-main); color: #000; }
 
-  /* ── MUSIC SECTION ── */
-  .wk-music-section {
-    padding: 80px 0;
-  }
+  /* MUSIC SECTIONS */
+  .wk-music-section { padding: 80px 0; }
   .wk-container {
     max-width: 1200px;
     margin: 0 auto;
@@ -114,29 +135,9 @@ const style = `
     gap: 80px;
     align-items: center;
   }
-  .wk-music-art {
-    width: 100%;
-    aspect-ratio: 1;
-    object-fit: cover;
-    display: block;
-  }
-  .wk-music-art-wrapper {
-    position: relative;
-  }
-  .wk-music-art-label {
-    position: absolute;
-    bottom: 18px; left: 0; right: 0;
-    display: flex;
-    justify-content: space-between;
-    padding: 0 20px;
-  }
-  .wk-music-art-label span {
-    font-family: var(--ff-display);
-    font-size: 1.5rem;
-    letter-spacing: 3px;
-    color: var(--clr-accent);
-  }
-  .wk-music-info {}
+  .wk-music-grid.reverse { direction: rtl; }
+  .wk-music-grid.reverse > * { direction: ltr; }
+  .wk-music-art-wrapper { position: relative; }
   .wk-music-info .eyebrow {
     font-family: var(--ff-body);
     font-size: 0.85rem;
@@ -169,10 +170,8 @@ const style = `
     flex-wrap: wrap;
   }
 
-  /* ── MORE MUSIC ── */
-  .wk-more-section {
-    padding: 40px 0 60px;
-  }
+  /* SHELF ROW */
+  .wk-more-section { padding: 40px 0 60px; }
   .wk-section-title {
     font-family: var(--ff-display);
     font-size: 1.6rem;
@@ -192,102 +191,26 @@ const style = `
     flex: 0 0 220px;
     cursor: pointer;
   }
-  .wk-album-card img {
-    width: 100%;
-    aspect-ratio: 1;
-    object-fit: cover;
-    display: block;
-    transition: transform 0.3s;
-  }
-  .wk-album-card:hover img { transform: scale(1.03); }
-
-  /* ── MORE VIDEOS ── */
-  .wk-videos-section {
-    padding: 40px 0 80px;
-  }
-  .wk-videos-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 4px;
-  }
-  .wk-video-card {
-    position: relative;
-    overflow: hidden;
-    cursor: pointer;
-    background: #111;
-  }
-  .wk-video-card img {
-    width: 100%;
-    aspect-ratio: 16/9;
-    object-fit: cover;
-    display: block;
-    transition: transform 0.4s, filter 0.4s;
-    filter: brightness(0.8);
-  }
-  .wk-video-card:hover img {
-    transform: scale(1.05);
-    filter: brightness(1);
-  }
-  .wk-video-info {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 12px 4px;
-  }
-  .wk-video-info .vtitle {
-    font-family: var(--ff-display);
-    font-size: 1.1rem;
-    letter-spacing: 2px;
-    color: var(--clr-main);
-  }
-  .wk-video-info .vwatch {
-    font-family: var(--ff-display);
+  .wk-album-card .wk-album-label {
+    font-family: var(--ff-body);
     font-size: 0.85rem;
     letter-spacing: 2px;
-    color: var(--clr-main);
-    text-decoration: underline;
-    cursor: pointer;
-  }
-  .wk-video-info .vwatch:hover { color: var(--clr-accent); }
-
-  /* ── HERO PLACEHOLDER ── */
-  .wk-hero-placeholder {
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(135deg, #0a1a0a 0%, #030a04 50%, #051a0a 100%);
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    padding-right: 12%;
-    position: relative;
-  }
-  .wk-hero-placeholder::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: radial-gradient(ellipse at 30% 60%, rgba(0,160,60,0.12) 0%, transparent 60%);
-  }
-  .wk-hero-figure {
-    width: 320px;
-    height: 480px;
-    background: linear-gradient(180deg, #2a2a2a 0%, #111 100%);
-    border-radius: 2px;
+    text-transform: uppercase;
+    color: var(--clr-main-50);
+    margin-top: 10px;
+    text-align: center;
   }
 
-  /* ── ART PLACEHOLDER COLORS ── */
+  /* ART PLACEHOLDERS */
+  .art-placeholder { width: 100%; aspect-ratio: 1; }
   .art-morayo { background: linear-gradient(135deg, #c8b89a 0%, #a0865e 100%); }
-  .art-kese { background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%); }
-  .art-pomh { background: linear-gradient(135deg, #e8e0d0 0%, #c8b89a 100%); }
-  .art-s2 { background: linear-gradient(135deg, #051a0a 0%, #00802e 50%, #00ff7f 100%); }
-  .art-tte { background: linear-gradient(135deg, #3a006f 0%, #7a0dbb 100%); }
-  .art-mil { background: linear-gradient(135deg, #e8e0d0 0%, #d0c0a0 100%); }
+  .art-kese   { background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%); }
+  .art-pomh   { background: linear-gradient(135deg, #e8e0d0 0%, #c8b89a 100%); }
+  .art-s2     { background: linear-gradient(135deg, #051a0a 0%, #00802e 50%, #00ff7f 100%); }
+  .art-tte    { background: linear-gradient(135deg, #3a006f 0%, #7a0dbb 100%); }
+  .art-mil    { background: linear-gradient(135deg, #e8e0d0 0%, #d0c0a0 100%); }
 
-  .art-placeholder {
-    width: 100%;
-    aspect-ratio: 1;
-  }
-
-  /* ── FOOTER ── */
+  /* FOOTER */
   .wk-footer {
     background: #0a0a0a;
     padding: 30px 40px;
@@ -310,327 +233,359 @@ const style = `
     text-transform: uppercase;
   }
 
-  /* ── DIVIDER ── */
-  .wk-divider {
-    border: none;
-    border-top: 1px solid #1a1a1a;
-  }
+  /* DIVIDER */
+  .wk-divider { border: none; border-top: 1px solid #1a1a1a; }
 
-  /* fade-in animation */
+  /* FADE-IN */
   .fade-in {
     opacity: 0;
     transform: translateY(40px);
     transition: opacity 0.7s ease, transform 0.7s ease;
   }
-  .fade-in.visible {
-    opacity: 1;
-    transform: none;
+  .fade-in.visible { opacity: 1; transform: none; }
+
+  /* STREAMING MODAL */
+  .wk-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.55);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    z-index: 300;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
   }
+  .wk-modal {
+    background: #fff;
+    color: #111;
+    width: 100%;
+    max-width: 400px;
+    border-radius: 12px;
+    padding: 28px 24px 20px;
+    position: relative;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+  .wk-modal-close {
+    position: absolute;
+    top: 14px; right: 18px;
+    background: none;
+    border: none;
+    font-size: 1.3rem;
+    color: #aaa;
+    cursor: pointer;
+    line-height: 1;
+  }
+  .wk-modal-close:hover { color: #111; }
+  .wk-modal-thumb {
+    width: 100px;
+    height: 100px;
+    border-radius: 6px;
+    overflow: hidden;
+    margin: 0 auto 14px;
+  }
+  .wk-modal-title {
+    text-align: center;
+    font-family: var(--ff-display);
+    font-size: 1.3rem;
+    letter-spacing: 2px;
+    color: #111;
+    margin-bottom: 2px;
+  }
+  .wk-modal-sub {
+    text-align: center;
+    font-family: var(--ff-body);
+    font-size: 0.8rem;
+    letter-spacing: 1px;
+    color: #999;
+    margin-bottom: 20px;
+  }
+  .wk-service-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 13px 0;
+    border-top: 1px solid #f0f0f0;
+  }
+  .wk-service-row:last-child { border-bottom: 1px solid #f0f0f0; }
+  .wk-service-name {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--ff-body);
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: #111;
+  }
+  .wk-service-play {
+    border: 1px solid #ccc;
+    background: none;
+    color: #111;
+    font-family: var(--ff-body);
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    padding: 6px 14px;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-block;
+    transition: background 0.15s, color 0.15s;
+  }
+  .wk-service-play:hover { background: #111; color: #fff; border-color: #111; }
 
   @media (max-width: 768px) {
     .wk-nav { gap: 32px; }
     .wk-music-grid { grid-template-columns: 1fr; gap: 40px; }
-    .wk-videos-grid { grid-template-columns: 1fr; }
+    .wk-music-grid.reverse { direction: ltr; }
     .wk-hero-bottom-bar { flex-direction: column; gap: 10px; }
   }
 `;
 
-const AlbumArt = ({ cls, children }: { cls: string; children?: React.ReactNode }) => (
-  <div className={`art-placeholder ${cls}`} style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
-    {children}
-  </div>
-);
+// ─── Streaming Modal ──────────────────────────────────────────────────────────
 
-const albums = [
-  { cls: "art-pomh", label: "PIECE OF MY HEART" },
-  { cls: "art-s2", label: "S2" },
-  { cls: "art-tte", label: "MORE LOVE LESS EGO" },
-  { cls: "art-mil", label: "MADE IN LAGOS" },
-  { cls: "art-kese", label: "MORAYO" },
-];
+const PLATFORM_META: Record<string, { name: string; icon: React.ReactNode; action?: string }> = {
+  spotify:      { name: "Spotify",       icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="#1DB954"><path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm4.586 14.424a.622.622 0 01-.857.207c-2.348-1.435-5.304-1.759-8.785-.964a.623.623 0 01-.277-1.215c3.809-.87 7.077-.496 9.712 1.115a.622.622 0 01.207.857zm1.223-2.722a.78.78 0 01-1.072.257c-2.687-1.652-6.785-2.131-9.965-1.166a.78.78 0 01-.973-.519.781.781 0 01.519-.973c3.632-1.102 8.147-.568 11.234 1.329a.78.78 0 01.257 1.072zm.105-2.835C14.692 8.95 9.375 8.775 6.297 9.71a.937.937 0 11-.543-1.794c3.527-1.07 9.396-.862 13.097 1.332a.937.937 0 11-.937 1.619z"/></svg> },
+  appleMusic:   { name: "Apple Music",   icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="#FC3C44"><path d="M23.994 6.124a9.23 9.23 0 00-.24-2.19c-.317-1.31-1.062-2.31-2.18-3.043a5.022 5.022 0 00-1.877-.726 10.496 10.496 0 00-1.564-.15H5.867c-.152.01-.303.017-.455.026C4.786.07 4.043.15 3.34.428 2.004.958 1.04 1.88.475 3.208A4.98 4.98 0 00.08 4.871C.027 5.33.01 5.793 0 6.256v11.489c.01.455.027.912.082 1.366.133 1.1.493 2.105 1.26 2.926.827.887 1.853 1.362 3.03 1.55.456.086.96.188 1.452.21H18.17c.152-.01.303-.018.455-.027.748-.055 1.49-.135 2.194-.412 1.326-.53 2.29-1.452 2.855-2.78.243-.562.345-1.158.392-1.762.05-.629.056-1.259.057-1.889V6.257c-.002-.044-.005-.088-.01-.133zm-6.427 3.608v5.16a3.574 3.574 0 01-.53 1.823 3.594 3.594 0 01-3.392 1.636 3.594 3.594 0 01-3.391-3.677 3.594 3.594 0 013.677-3.392c.437.016.87.1 1.28.247V5.072l-5.51 1.596v6.82a3.574 3.574 0 01-.53 1.82 3.594 3.594 0 01-3.392 1.637 3.594 3.594 0 01-3.39-3.677 3.594 3.594 0 013.676-3.391c.437.016.87.1 1.28.247V7.029c0-.575.396-1.074.956-1.206l6.96-2.014c.73-.212 1.473.308 1.473 1.067v4.856z"/></svg> },
+  youtube:      { name: "YouTube",       icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="#FF0000"><path d="M23.498 6.186a3.016 3.016 0 00-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 00.502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 002.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 002.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg> },
+  youtubeMusic: { name: "YouTube Music", icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="#FF0000"><path d="M12 0C5.376 0 0 5.376 0 12s5.376 12 12 12 12-5.376 12-12S18.624 0 12 0zm0 19.104c-3.924 0-7.104-3.18-7.104-7.104S8.076 4.896 12 4.896s7.104 3.18 7.104 7.104-3.18 7.104-7.104 7.104zm-2.316-3.564V8.46L16.2 12l-6.516 3.54z"/></svg> },
+  soundcloud:   { name: "SoundCloud",    icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="#FF5500"><path d="M1.175 12.225c-.015 0-.024.01-.024.024l-.235 2.19.235 2.174c0 .014.01.023.024.023.013 0 .022-.01.024-.023l.267-2.174-.267-2.19c-.002-.015-.01-.024-.024-.024zm22.065-1.855c-.496 0-.97.101-1.4.283-.289-3.298-3.034-5.868-6.406-5.868-1.107 0-2.145.295-3.028.812-.339.203-.429.411-.432.587v11.475c.004.183.148.333.332.337H23.24c.922 0 1.67-.748 1.67-1.67V12.04c0-.922-.748-1.67-1.67-1.67z"/></svg> },
+  amazonMusic:  { name: "Amazon Music",  icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="#00A8E1"><path d="M13.958 10.09c0 1.232.029 2.256-.59 3.351-.502.891-1.301 1.438-2.186 1.438-1.214 0-1.922-.924-1.922-2.292 0-2.692 2.415-3.182 4.698-3.182v.685zm3.186 7.705a.66.66 0 01-.76.074c-1.071-.89-1.261-1.3-1.847-2.147-1.766 1.799-3.016 2.338-5.307 2.338-2.707 0-4.818-1.671-4.818-5.015 0-2.612 1.416-4.391 3.429-5.258 1.746-.77 4.186-.907 6.051-1.119v-.417c0-.766.06-1.67-.39-2.33-.392-.594-1.144-.839-1.812-.839-1.232 0-2.33.632-2.599 1.941l-3.147-.34C5.894 2.048 9.191 1 12.148 1c1.509 0 3.481.402 4.671 1.547C18.159 3.744 18 5.348 18 7.1v6.487c0 1.952.81 2.81 1.572 3.863.266.373.325.82-.014 1.098l-2.414 2.077z"/></svg>, action: "Play" },
+  amazonStore:  { name: "Amazon Music",  icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="#00A8E1"><path d="M13.958 10.09c0 1.232.029 2.256-.59 3.351-.502.891-1.301 1.438-2.186 1.438-1.214 0-1.922-.924-1.922-2.292 0-2.692 2.415-3.182 4.698-3.182v.685zm3.186 7.705a.66.66 0 01-.76.074c-1.071-.89-1.261-1.3-1.847-2.147-1.766 1.799-3.016 2.338-5.307 2.338-2.707 0-4.818-1.671-4.818-5.015 0-2.612 1.416-4.391 3.429-5.258 1.746-.77 4.186-.907 6.051-1.119v-.417c0-.766.06-1.67-.39-2.33-.392-.594-1.144-.839-1.812-.839-1.232 0-2.33.632-2.599 1.941l-3.147-.34C5.894 2.048 9.191 1 12.148 1c1.509 0 3.481.402 4.671 1.547C18.159 3.744 18 5.348 18 7.1v6.487c0 1.952.81 2.81 1.572 3.863.266.373.325.82-.014 1.098l-2.414 2.077z"/></svg>, action: "Download" },
+  itunes:       { name: "iTunes Store",  icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="#FC3C44"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm0 2c5.514 0 10 4.486 10 10s-4.486 10-10 10S2 17.514 2 12 6.486 2 12 2zm-.5 4v7.25A2.5 2.5 0 1013 15.5V9h3V7h-4.5z"/></svg>, action: "Download" },
+  deezer:       { name: "Deezer",        icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="#EF5466"><path d="M18.81 11.833H24v2.044h-5.19zm0-3.777H24v2.044h-5.19zm0 7.61H24v2.045h-5.19zM0 19.666h5.19v-2.044H0zm6.163 0h5.19v-2.044h-5.19zm6.161 0h5.19v-2.044h-5.19zm6.162 0H24v-2.044h-5.19zM6.163 15.889h5.19v-2.044h-5.19zm6.161 0h5.19v-2.044h-5.19zM6.163 12.111h5.19v-2.044h-5.19zm6.161 0h5.19v-2.044h-5.19zM12.324 8.334h5.19V6.29h-5.19z"/></svg> },
+  tidal:        { name: "Tidal",         icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="#000"><path d="M12.012 3.992L8.008 7.996 4.004 3.992 0 7.996l4.004 4.004 4.004-4.004 4.004 4.004 4.004-4.004zM8.008 16.004l-4.004-4.004L0 16.004 4.004 20l4.004-4.004 4.004 4.004L20.016 12 16.012 7.996 12.008 12z"/></svg> },
+  pandora:      { name: "Pandora",       icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="#3668FF"><path d="M0 0v24h8.218c5.395 0 9.893-4.395 9.893-9.995 0-5.418-4.085-8.442-8.682-8.442H6.32V24H2.903V0zm6.32 2.99h1.109c3.299 0 5.68 2.355 5.68 5.617 0 3.319-2.355 5.756-5.68 5.756H6.32z"/></svg> },
+  audiomack:    { name: "Audiomack",     icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="#FFA200"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm4.5 16.5l-6-3.5V8l6 3.5v5z"/></svg> },
+};
 
-const videos = [
-  { cls: "art-kese", title: "KESE (DANCE) (OFFICIAL VIDEO)" },
-  { cls: "art-pomh", title: "PIECE OF MY HEART" },
-  { cls: "art-s2", title: "DIAMONDS" },
-  { cls: "art-tte", title: "IDK" },
-  { cls: "art-morayo", title: "YOYO" },
-  { cls: "art-mil", title: "JORO" },
-];
+const PLATFORM_ORDER = ["spotify","appleMusic","youtube","youtubeMusic","soundcloud","amazonMusic","amazonStore","itunes","deezer","tidal","audiomack","pandora"];
+
+interface ModalState { release: Release }
+
+function StreamingModal({ state, onClose }: { state: ModalState; onClose: () => void }) {
+  const { release } = state;
+  const [links, setLinks] = useState<OdesliLinks | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!release.listenUrl) { setLoading(false); return; }
+    fetchStreamingLinks(release.listenUrl).then((data) => {
+      setLinks(data);
+      setLoading(false);
+    });
+  }, [release.listenUrl]);
+
+  const ordered = PLATFORM_ORDER.filter((p) => links?.[p]?.url);
+
+  return (
+    <div className="wk-overlay" onClick={onClose}>
+      <div className="wk-modal" onClick={(e) => e.stopPropagation()}>
+        <button className="wk-modal-close" onClick={onClose}>✕</button>
+        <div className="wk-modal-thumb">
+          {release.coverUrl
+            ? <img src={release.coverUrl} alt={release.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            : <div className={`art-placeholder ${release.artClass || "art-morayo"}`} style={{ width: "100%", height: "100%" }} />
+          }
+        </div>
+        <p className="wk-modal-title">{release.title}</p>
+        <p className="wk-modal-sub">Choose music service</p>
+        {loading && <p style={{ textAlign: "center", color: "#aaa", fontSize: "0.85rem", padding: "16px 0" }}>Loading…</p>}
+        {!loading && !release.listenUrl && <p style={{ textAlign: "center", color: "#aaa", fontSize: "0.85rem", padding: "16px 0" }}>No streaming link added yet.</p>}
+        {!loading && release.listenUrl && ordered.length === 0 && <p style={{ textAlign: "center", color: "#aaa", fontSize: "0.85rem", padding: "16px 0" }}>Could not find streaming links.</p>}
+        {ordered.map((platform) => {
+          const meta = PLATFORM_META[platform];
+          const url = links![platform].url;
+          return (
+            <div className="wk-service-row" key={platform}>
+              <span className="wk-service-name">{meta?.icon}{meta?.name ?? platform}</span>
+              <a className="wk-service-play" href={url} target="_blank" rel="noopener noreferrer">{meta?.action ?? "Play"}</a>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ─── Hooks ────────────────────────────────────────────────────────────────────
 
 function useFadeIn() {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const obs = new IntersectionObserver(
-      ([entry]) => { if (entry.isIntersecting) { el.classList.add("visible"); obs.disconnect(); } },
-      { threshold: 0.1 }
-    );
-    obs.observe(el);
-    return () => obs.disconnect();
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) { el.classList.add("visible"); observer.disconnect(); }
+    }, { threshold: 0.1 });
+    observer.observe(el);
+    return () => observer.disconnect();
   }, []);
   return ref;
 }
 
-function FadeSection({ children, style: s }: { children: React.ReactNode; style?: React.CSSProperties }) {
+function FadeSection({ children }: { children: React.ReactNode }) {
   const ref = useFadeIn();
-  return <div ref={ref} className="fade-in" style={s}>{children}</div>;
+  return <div ref={ref} className="fade-in">{children}</div>;
 }
 
+// ─── Components ───────────────────────────────────────────────────────────────
+
+function Nav() {
+  return (
+    <nav className="wk-nav">
+      <a href="#">MUSIC</a>
+      <a href="#">VIDEO</a>
+      <a href="#">TOUR</a>
+    </nav>
+  );
+}
+
+function Hero({ onListen }: { onListen: () => void }) {
+  const { content, updateContent } = useContent();
+
+  useEffect(() => {
+    getHero().then((data) => {
+      if (data) updateContent({ hero: { label: data.label, albumTitle: data.albumTitle, ctaText: data.ctaText, ctaUrl: data.ctaUrl, imageUrl: data.imageUrl || "" } });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return (
+    <section className="wk-hero">
+      <div className="wk-hero-placeholder">
+        <img src="/hero2.jpeg" alt="Hero" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
+      </div>
+      <div className="wk-hero-bottom-bar">
+        <span className="label">{content.hero.label}</span>
+        <span className="album-title">{content.hero.albumTitle}</span>
+        <button className="wk-btn" onClick={onListen}>{content.hero.ctaText || "LISTEN NOW"}</button>
+      </div>
+    </section>
+  );
+}
+
+function ReleaseArt({ release }: { release: Release }) {
+  if (release.coverUrl) {
+    return <img src={release.coverUrl} alt={release.title} style={{ width: "100%", aspectRatio: "1", objectFit: "cover", display: "block" }} />;
+  }
+  return <div className={`art-placeholder ${release.artClass || "art-morayo"}`} style={{ width: "100%", aspectRatio: "1" }} />;
+}
+
+function FeaturedSection({ release, reverse, onListen }: { release: Release; reverse: boolean; onListen: () => void }) {
+  return (
+    <section className="wk-music-section">
+      <div className="wk-container">
+        <FadeSection>
+          <div className={`wk-music-grid${reverse ? " reverse" : ""}`}>
+            <ReleaseArt release={release} />
+            <div className="wk-music-info">
+              {release.eyebrow && <p className="eyebrow">{release.eyebrow}</p>}
+              <h2 className="title">{renderTitle(release.title)}</h2>
+              {release.featuredArtist && <p className="feat">{release.featuredArtist}</p>}
+              <div className="wk-btn-row">
+                {(release.buttons ?? ["LISTEN NOW"]).map((btn) => (
+                  <button key={btn} className="wk-btn" onClick={onListen}>{btn}</button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </FadeSection>
+      </div>
+    </section>
+  );
+}
+
+function ShelfRow({ releases, onListen }: { releases: Release[]; onListen: (r: Release) => void }) {
+  if (releases.length === 0) return null;
+  return (
+    <section className="wk-more-section">
+      <div className="wk-container">
+        <FadeSection>
+          <h3 className="wk-section-title">MORE MUSIC</h3>
+          <div className="wk-albums-row">
+            {releases.map((r) => (
+              <div className="wk-album-card" key={r._id} onClick={() => onListen(r)}>
+                <ReleaseArt release={r} />
+                <p className="wk-album-label">{r.title}</p>
+              </div>
+            ))}
+          </div>
+        </FadeSection>
+      </div>
+    </section>
+  );
+}
+
+function Footer() {
+  return (
+    <footer className="wk-footer">
+      <span className="brand">BLUEBOY</span>
+      <span className="copy">© 2025 Blueboy. All Rights Reserved.</span>
+      <a href="#/admin" style={{ fontFamily: "var(--ff-body)", fontSize: "0.7rem", letterSpacing: "2px", color: "var(--clr-main-50)", textTransform: "uppercase", textDecoration: "none" }}>
+        Admin
+      </a>
+    </footer>
+  );
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
+
 export default function BlueboySite() {
+  const [featured, setFeatured] = useState<Release[]>([]);
+  const [shelf, setShelf] = useState<Release[]>([]);
+  const [modal, setModal] = useState<ModalState | null>(null);
+
+  useEffect(() => {
+    getReleases(true).then(setFeatured);
+    getReleases(false).then(setShelf);
+  }, []);
+
+  const firstFeatured = featured[0] ?? null;
+  const { content } = useContent();
+
+  function openHeroModal() {
+    if (!content.hero.ctaUrl) return;
+    setModal({
+      release: {
+        _id: "hero",
+        title: content.hero.albumTitle || "LISTEN",
+        eyebrow: content.hero.label,
+        featuredArtist: "",
+        featured: true,
+        displayOrder: 0,
+        coverUrl: "",
+        artClass: "art-morayo",
+        listenUrl: content.hero.ctaUrl,
+        buttons: [content.hero.ctaText || "LISTEN NOW"],
+      },
+    });
+  }
+
   return (
     <div className="wk-site">
-      <style>{style}</style>
+      <style>{globalStyle}</style>
+      <Nav />
+      <Hero onListen={openHeroModal} />
 
-      {/* NAV */}
-      <nav className="wk-nav">
-        <a href="#">MUSIC</a>
-        <a href="#">VIDEO</a>
-        <a href="#">TOUR</a>
-      </nav>
-
-      {/* HERO */}
-      <section className="wk-hero">
-        <div className="wk-hero-placeholder">
-          <svg width="100%" height="100%" style={{position:"absolute",inset:0}} viewBox="0 0 1400 700" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
-            <rect width="1400" height="700" fill="#0d0d0d"/>
-            <rect x="0" y="560" width="1400" height="140" fill="#111"/>
-            <rect x="0" y="0" width="1400" height="560" fill="#0f0f0f"/>
-            <rect x="600" y="60" width="200" height="500" rx="2" fill="#2a2a2a"/>
-            <rect x="610" y="70" width="180" height="480" fill="#252525"/>
-            <rect x="770" y="270" width="16" height="30" rx="3" fill="#444"/>
-            <circle cx="778" cy="287" r="5" fill="#555"/>
-            <ellipse cx="1000" cy="620" rx="120" ry="14" fill="#050505" opacity="0.6"/>
-            <rect x="950" y="480" width="100" height="140" rx="8" fill="#1a1a1a"/>
-            <ellipse cx="1000" cy="465" rx="50" ry="55" fill="#1e1e1e"/>
-            <path d="M 975 510 Q 1000 530 1025 510" stroke="#444" strokeWidth="3" fill="none"/>
-            <ellipse cx="230" cy="590" rx="80" ry="35" fill="#181818"/>
-            <rect x="160" y="555" width="20" height="50" rx="3" fill="#181818"/>
-            <rect x="200" y="555" width="20" height="50" rx="3" fill="#181818"/>
-            <rect x="290" y="555" width="20" height="50" rx="3" fill="#181818"/>
-            <ellipse cx="150" cy="565" rx="35" ry="25" fill="#181818"/>
-            <path d="M120 555 Q130 535 145 545 Q150 530 160 545" stroke="#222" strokeWidth="2" fill="none"/>
-          </svg>
+      {featured.map((release, i) => (
+        <div key={release._id}>
+          {i > 0 && <hr className="wk-divider" />}
+          <FeaturedSection
+            release={release}
+            reverse={i % 2 !== 0}
+            onListen={() => setModal({ release })}
+          />
         </div>
+      ))}
 
-        <div className="wk-hero-bottom-bar">
-          <span className="label">THE NEW ALBUM</span>
-          <span className="album-title">MORAYO</span>
-          <a href="#" className="wk-btn">LISTEN NOW</a>
-        </div>
-      </section>
-
-      {/* MORAYO ALBUM SECTION */}
-      <section className="wk-music-section">
-        <div className="wk-container">
-          <FadeSection>
-            <div className="wk-music-grid">
-              <div>
-                <AlbumArt cls="art-morayo">
-                  <svg viewBox="0 0 400 400" width="100%" height="100%">
-                    <rect width="400" height="400" fill="#c8b090"/>
-                    <circle cx="200" cy="160" r="100" fill="#b09070"/>
-                    <ellipse cx="200" cy="350" rx="160" ry="80" fill="#a07850"/>
-                    <text x="50%" y="92%" textAnchor="middle" fontFamily="serif" fontSize="22" fill="#5a3a1a" opacity="0.6">MORAYO</text>
-                    <rect x="330" y="340" width="50" height="40" rx="3" fill="#00c04b"/>
-                    <text x="355" y="363" textAnchor="middle" fontFamily="sans-serif" fontSize="6" fill="white" fontWeight="bold">PARENTAL</text>
-                    <text x="355" y="372" textAnchor="middle" fontFamily="sans-serif" fontSize="6" fill="white">ADVISORY</text>
-                  </svg>
-                </AlbumArt>
-              </div>
-              <div className="wk-music-info">
-                <p className="eyebrow">THE NEW ALBUM</p>
-                <h2 className="title">MORAYO</h2>
-                <div className="wk-btn-row">
-                  <a href="#" className="wk-btn">LISTEN NOW</a>
-                </div>
-              </div>
-            </div>
-          </FadeSection>
-        </div>
-      </section>
-
-      <hr className="wk-divider"/>
-
-      {/* KESE (DANCE) SECTION */}
-      <section className="wk-music-section">
-        <div className="wk-container">
-          <FadeSection>
-            <div className="wk-music-grid">
-              <div className="wk-music-art-wrapper">
-                <AlbumArt cls="art-kese">
-                  <svg viewBox="0 0 400 400" width="100%" height="100%">
-                    <rect width="400" height="400" fill="#080810"/>
-                    <circle cx="200" cy="180" r="130" fill="#0f0f1a" opacity="0.8"/>
-                    <ellipse cx="200" cy="250" rx="70" ry="90" fill="#1a1a1a"/>
-                    <ellipse cx="200" cy="155" rx="45" ry="50" fill="#1e1e1e"/>
-                    <rect x="170" y="240" width="60" height="20" rx="4" fill="#e8e8e8" opacity="0.9"/>
-                    <text x="30" y="50%" textAnchor="start" fontFamily="sans-serif" fontSize="28" fontWeight="900" fill="#00c04b" letterSpacing="2">KESE</text>
-                    <text x="370" y="50%" textAnchor="end" fontFamily="sans-serif" fontSize="28" fontWeight="900" fill="#00c04b" letterSpacing="2">DANCE</text>
-                  </svg>
-                </AlbumArt>
-              </div>
-              <div className="wk-music-info">
-                <p className="eyebrow">THE NEWEST SINGLE</p>
-                <h2 className="title">KESE<br/>(DANCE)</h2>
-                <div className="wk-btn-row">
-                  <a href="#" className="wk-btn">LISTEN NOW</a>
-                </div>
-              </div>
-            </div>
-          </FadeSection>
-        </div>
-      </section>
-
-      <hr className="wk-divider"/>
-
-      {/* PIECE OF MY HEART SECTION */}
-      <section className="wk-music-section">
-        <div className="wk-container">
-          <FadeSection>
-            <div className="wk-music-grid">
-              <div>
-                <AlbumArt cls="art-pomh">
-                  <svg viewBox="0 0 400 400" width="100%" height="100%">
-                    <rect width="400" height="400" fill="#e8e0d0"/>
-                    <rect x="50" y="50" width="300" height="300" fill="#d8d0c0"/>
-                    <circle cx="155" cy="210" r="30" fill="#555"/>
-                    <rect x="130" y="235" width="50" height="80" rx="5" fill="#555"/>
-                    <circle cx="255" cy="200" r="35" fill="#444"/>
-                    <rect x="225" y="228" width="60" height="90" rx="5" fill="#444"/>
-                    <rect x="120" y="300" width="60" height="8" fill="#888"/>
-                    <rect x="220" y="295" width="70" height="8" fill="#888"/>
-                    <rect x="50" y="310" width="300" height="40" rx="2" fill="#b8c890" opacity="0.4"/>
-                    <text x="50%" y="385" textAnchor="middle" fontFamily="sans-serif" fontSize="10" fill="#00c04b" letterSpacing="2" fontWeight="800">BLUEBOY · BRENT FAIYAZ</text>
-                    <text x="50%" y="398" textAnchor="middle" fontFamily="sans-serif" fontSize="9" fill="#888" letterSpacing="1">PIECE OF MY HEART</text>
-                  </svg>
-                </AlbumArt>
-              </div>
-              <div className="wk-music-info">
-                <h2 className="title">PIECE OF<br/>MY HEART</h2>
-                <p className="feat">FEAT. BRENT FAIYAZ</p>
-                <div className="wk-btn-row">
-                  <a href="#" className="wk-btn">LISTEN NOW</a>
-                  <a href="#" className="wk-btn">WATCH NOW</a>
-                </div>
-              </div>
-            </div>
-          </FadeSection>
-        </div>
-      </section>
-
-      <hr className="wk-divider"/>
-
-      {/* MORE MUSIC */}
-      <section className="wk-more-section">
-        <div className="wk-container">
-          <FadeSection>
-            <h3 className="wk-section-title">MORE MUSIC FROM BLUEBOY</h3>
-            <div className="wk-albums-row">
-              {albums.map((a, i) => (
-                <div className="wk-album-card" key={i}>
-                  <AlbumArt cls={a.cls}>
-                    <svg viewBox="0 0 220 220" width="100%" height="100%">
-                      {a.cls === "art-s2" && <>
-                        <rect width="220" height="220" fill="#051a0a"/>
-                        <rect width="220" height="220" fill="url(#s2g)" opacity="0.8"/>
-                        <defs><linearGradient id="s2g" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stopColor="#051a0a"/><stop offset="50%" stopColor="#00802e"/><stop offset="100%" stopColor="#00ff7f"/></linearGradient></defs>
-                        <text x="50%" y="55%" textAnchor="middle" fontFamily="sans-serif" fontSize="40" fontWeight="900" fill="white" opacity="0.9">S2</text>
-                        <rect x="4" y="190" width="55" height="22" rx="2" fill="#00c04b"/>
-                        <text x="31" y="204" textAnchor="middle" fontFamily="sans-serif" fontSize="6" fill="white" fontWeight="bold">PARENTAL ADV.</text>
-                      </>}
-                      {a.cls === "art-tte" && <>
-                        <rect width="220" height="220" fill="#3a006f"/>
-                        <circle cx="110" cy="90" r="60" fill="#5a0dbb" opacity="0.6"/>
-                        <text x="50%" y="78%" textAnchor="middle" fontFamily="sans-serif" fontSize="12" fontWeight="800" fill="white" opacity="0.9">MORE LOVE</text>
-                        <text x="50%" y="90%" textAnchor="middle" fontFamily="sans-serif" fontSize="12" fontWeight="800" fill="white" opacity="0.9">LESS EGO</text>
-                      </>}
-                      {a.cls === "art-mil" && <>
-                        <rect width="220" height="220" fill="#e0d8c8"/>
-                        <circle cx="110" cy="100" r="50" fill="#b0a080"/>
-                        <text x="50%" y="82%" textAnchor="middle" fontFamily="cursive" fontSize="14" fill="#5a3a10">Made in Lagos</text>
-                        <text x="50%" y="93%" textAnchor="middle" fontFamily="cursive" fontSize="11" fill="#8a6a40">Blueboy</text>
-                      </>}
-                      {a.cls === "art-morayo" && <>
-                        <rect width="220" height="220" fill="#c8b090"/>
-                        <circle cx="110" cy="90" r="55" fill="#b09070"/>
-                        <text x="50%" y="88%" textAnchor="middle" fontFamily="sans-serif" fontSize="13" fontWeight="800" fill="#5a3a10">MORAYO</text>
-                      </>}
-                      {a.cls === "art-pomh" && <>
-                        <rect width="220" height="220" fill="#e8e0d0"/>
-                        <circle cx="80" cy="130" r="28" fill="#555"/>
-                        <circle cx="145" cy="120" r="32" fill="#444"/>
-                        <text x="50%" y="95%" textAnchor="middle" fontFamily="sans-serif" fontSize="8" fill="#00c04b" fontWeight="800">PIECE OF MY HEART</text>
-                      </>}
-                    </svg>
-                  </AlbumArt>
-                </div>
-              ))}
-            </div>
-          </FadeSection>
-        </div>
-      </section>
-
-      {/* MORE VIDEOS */}
-      <section className="wk-videos-section">
-        <div className="wk-container">
-          <FadeSection>
-            <h3 className="wk-section-title">MORE VIDEOS FROM BLUEBOY</h3>
-            <div className="wk-videos-grid">
-              {videos.map((v, i) => (
-                <div className="wk-video-card" key={i}>
-                  <AlbumArt cls={v.cls}>
-                    <svg viewBox="0 0 640 360" width="100%" height="100%">
-                      {v.cls === "art-kese" && <>
-                        <rect width="640" height="360" fill="#050510"/>
-                        <circle cx="320" cy="160" r="100" fill="#0a0a20" opacity="0.8"/>
-                        <polygon points="300,130 300,190 360,160" fill="#00c04b" opacity="0.7"/>
-                      </>}
-                      {v.cls === "art-pomh" && <>
-                        <rect width="640" height="360" fill="#1a0a0a"/>
-                        <rect x="0" y="200" width="640" height="160" fill="#2a1010" opacity="0.5"/>
-                        <polygon points="300,130 300,190 360,160" fill="#00c04b" opacity="0.7"/>
-                      </>}
-                      {v.cls === "art-s2" && <>
-                        <rect width="640" height="360" fill="#030f07"/>
-                        <circle cx="320" cy="150" r="120" fill="#0a2a12" opacity="0.5"/>
-                        <polygon points="300,110 300,190 380,150" fill="#00c04b" opacity="0.7"/>
-                      </>}
-                      {v.cls === "art-tte" && <>
-                        <rect width="640" height="360" fill="#100520"/>
-                        <ellipse cx="320" cy="200" rx="200" ry="100" fill="#200a40" opacity="0.6"/>
-                        <polygon points="300,130 300,190 360,160" fill="#00c04b" opacity="0.7"/>
-                      </>}
-                      {v.cls === "art-morayo" && <>
-                        <rect width="640" height="360" fill="#1a1005"/>
-                        <rect x="0" y="180" width="640" height="180" fill="#2a1a05" opacity="0.4"/>
-                        <polygon points="300,110 300,190 380,150" fill="#00c04b" opacity="0.7"/>
-                      </>}
-                      {v.cls === "art-mil" && <>
-                        <rect width="640" height="360" fill="#050505"/>
-                        <circle cx="200" cy="180" r="120" fill="#0f0f0f" opacity="0.8"/>
-                        <polygon points="300,130 300,190 360,160" fill="#00c04b" opacity="0.7"/>
-                      </>}
-                      <text x="50%" y="92%" textAnchor="middle" fontFamily="sans-serif" fontSize="14" fontWeight="800" fill="rgba(255,255,255,0.5)" letterSpacing="2">{v.title}</text>
-                    </svg>
-                  </AlbumArt>
-                  <div className="wk-video-info">
-                    <span className="vtitle">{v.title}</span>
-                    <span className="vwatch">WATCH NOW</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </FadeSection>
-        </div>
-      </section>
-
-      {/* FOOTER */}
-      <footer className="wk-footer">
-        <span className="brand">BLUEBOY</span>
-        <span className="copy">© 2025 Blueboy. All Rights Reserved.</span>
-      </footer>
+      <hr className="wk-divider" />
+      <ShelfRow releases={shelf} onListen={(r) => setModal({ release: r })} />
+      <Footer />
+      {modal && <StreamingModal state={modal} onClose={() => setModal(null)} />}
     </div>
   );
 }
