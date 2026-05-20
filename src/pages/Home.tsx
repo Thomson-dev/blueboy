@@ -544,7 +544,6 @@ export default function BlueboySite() {
     getReleases(false).then(setShelf);
   }, []);
 
-  const firstFeatured = featured[0] ?? null;
   const { content } = useContent();
 
   function openHeroModal() {
