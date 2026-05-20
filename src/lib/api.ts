@@ -141,9 +141,7 @@ export interface OdesliLinks {
 
 export async function fetchStreamingLinks(musicUrl: string): Promise<OdesliLinks | null> {
   try {
-    const res = await fetch(
-      `https://api.song.link/v1-alpha.1/links?url=${encodeURIComponent(musicUrl)}`
-    );
+    const res = await fetch(`${BASE}/api/links?url=${encodeURIComponent(musicUrl)}`);
     if (!res.ok) return null;
     const data = await res.json();
     return data.linksByPlatform ?? null;
