@@ -35,7 +35,7 @@ export const MusicCard: React.FC<MusicCardProps> = ({ item }) => {
                  transition-colors duration-300 hover:bg-white/[0.02]"
     >
       {/* Cover Art */}
-      <div className="w-[148px] h-[148px] flex-shrink-0 overflow-hidden relative">
+      <div className="w-[clamp(110px,28vw,148px)] h-[clamp(110px,28vw,148px)] flex-shrink-0 overflow-hidden relative">
         <img
           src={item.image}
           alt={item.title}
@@ -54,7 +54,7 @@ export const MusicCard: React.FC<MusicCardProps> = ({ item }) => {
       </div>
 
       {/* Info */}
-      <div className="flex flex-col gap-1 min-w-[200px] text-center sm:text-left">
+      <div className="flex flex-col gap-1 min-w-0 w-full sm:w-auto text-center sm:text-left">
         {item.label && (
           <p className="font-['Barlow_Condensed',sans-serif] text-[11px] tracking-[3px]
                         text-white/60 font-bold m-0 uppercase">

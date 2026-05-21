@@ -337,11 +337,36 @@ const globalStyle = `
   }
   .wk-service-play:hover { background: #111; color: #fff; border-color: #111; }
 
+  @media (max-width: 1024px) {
+    .wk-music-grid { gap: 48px; }
+  }
+
   @media (max-width: 768px) {
-    .wk-nav { gap: 32px; }
-    .wk-music-grid { grid-template-columns: 1fr; gap: 40px; }
+    .wk-nav { gap: 28px; padding: 10px 16px; }
+    .wk-music-grid { grid-template-columns: 1fr; gap: 28px; }
     .wk-music-grid.reverse { direction: ltr; }
-    .wk-hero-bottom-bar { flex-direction: column; gap: 10px; }
+    .wk-hero-bottom-bar { flex-direction: column; gap: 6px; padding: 16px 20px; text-align: center; }
+    .wk-container { padding: 0 20px; }
+    .wk-music-section { padding: 48px 0; }
+    .wk-more-section { padding: 24px 0 40px; }
+    .wk-footer { padding: 20px 16px; flex-direction: column; gap: 8px; text-align: center; }
+    .wk-footer .brand { font-size: 1.3rem; }
+    .wk-modal { padding: 24px 16px 16px; border-radius: 10px; }
+  }
+
+  @media (max-width: 480px) {
+    .wk-nav { gap: 16px; }
+    .wk-nav a { font-size: 1.1rem; letter-spacing: 2px; }
+    .wk-hero-bottom-bar .album-title { font-size: clamp(1.3rem, 5vw, 2.2rem); }
+    .wk-hero-bottom-bar .label { font-size: 0.75rem; }
+    .wk-container { padding: 0 14px; }
+    .wk-music-section { padding: 32px 0; }
+    .wk-music-info .title { font-size: clamp(2rem, 9vw, 5rem); }
+    .wk-album-card { flex: 0 0 160px; }
+    .wk-section-title { font-size: 1.3rem; }
+    .wk-btn { font-size: 0.85rem; padding: 7px 16px; letter-spacing: 2px; }
+    .wk-footer .brand { font-size: 1.1rem; letter-spacing: 4px; }
+    .wk-footer .copy { font-size: 0.65rem; }
   }
 `;
 
