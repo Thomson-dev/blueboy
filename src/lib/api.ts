@@ -2,8 +2,8 @@ const BASE = "https://blueboy-backend.vercel.app";
 
 // ─── Cloudinary ───────────────────────────────────────────────────────────────
 
-const CLOUD_NAME   = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME as string;
-const UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET as string;
+const CLOUD_NAME    = "ddwmcikmw";
+const UPLOAD_PRESET = "blueboy";
 
 export async function uploadImage(file: File): Promise<string> {
   const form = new FormData();
