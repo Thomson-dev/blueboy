@@ -88,9 +88,6 @@ export interface Release {
   displayOrder: number;
   coverUrl: string;
   listenUrl: string;
-  eyebrow: string;
-  featuredArtist: string;
-  artClass: string;
   buttons: string[];
 }
 

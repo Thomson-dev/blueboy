@@ -138,15 +138,6 @@ const globalStyle = `
   .wk-music-grid.reverse { direction: rtl; }
   .wk-music-grid.reverse > * { direction: ltr; }
   .wk-music-art-wrapper { position: relative; }
-  .wk-music-info .eyebrow {
-    font-family: var(--ff-body);
-    font-size: 0.85rem;
-    font-weight: 800;
-    letter-spacing: 4px;
-    text-transform: uppercase;
-    color: var(--clr-main-50);
-    margin-bottom: 12px;
-  }
   .wk-music-info .title {
     font-family: var(--ff-display);
     font-size: clamp(2.5rem, 5vw, 5rem);
@@ -154,15 +145,6 @@ const globalStyle = `
     line-height: 1;
     color: var(--clr-main);
     margin-bottom: 8px;
-  }
-  .wk-music-info .feat {
-    font-family: var(--ff-body);
-    font-size: 0.9rem;
-    font-weight: 700;
-    letter-spacing: 3px;
-    text-transform: uppercase;
-    color: var(--clr-main-50);
-    margin-bottom: 28px;
   }
   .wk-btn-row {
     display: flex;
@@ -200,15 +182,6 @@ const globalStyle = `
     margin-top: 10px;
     text-align: center;
   }
-
-  /* ART PLACEHOLDERS */
-  .art-placeholder { width: 100%; aspect-ratio: 1; }
-  .art-morayo { background: linear-gradient(135deg, #c8b89a 0%, #a0865e 100%); }
-  .art-kese   { background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%); }
-  .art-pomh   { background: linear-gradient(135deg, #e8e0d0 0%, #c8b89a 100%); }
-  .art-s2     { background: linear-gradient(135deg, #051a0a 0%, #00802e 50%, #00ff7f 100%); }
-  .art-tte    { background: linear-gradient(135deg, #3a006f 0%, #7a0dbb 100%); }
-  .art-mil    { background: linear-gradient(135deg, #e8e0d0 0%, #d0c0a0 100%); }
 
   /* FOOTER */
   .wk-footer {
@@ -413,7 +386,7 @@ function StreamingModal({ state, onClose }: { state: ModalState; onClose: () => 
         <div className="wk-modal-thumb">
           {release.coverUrl
             ? <img src={release.coverUrl} alt={release.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-            : <div className={`art-placeholder ${release.artClass || "art-morayo"}`} style={{ width: "100%", height: "100%" }} />
+            : <div style={{ width: "100%", height: "100%", background: "#111" }} />
           }
         </div>
         <p className="wk-modal-title">{release.title}</p>
@@ -497,7 +470,7 @@ function ReleaseArt({ release }: { release: Release }) {
   if (release.coverUrl) {
     return <img src={release.coverUrl} alt={release.title} style={{ width: "100%", aspectRatio: "1", objectFit: "cover", display: "block" }} />;
   }
-  return <div className={`art-placeholder ${release.artClass || "art-morayo"}`} style={{ width: "100%", aspectRatio: "1" }} />;
+  return <div style={{ width: "100%", aspectRatio: "1", background: "#111" }} />;
 }
 
 function FeaturedSection({ release, reverse, onListen }: { release: Release; reverse: boolean; onListen: () => void }) {
@@ -508,9 +481,7 @@ function FeaturedSection({ release, reverse, onListen }: { release: Release; rev
           <div className={`wk-music-grid${reverse ? " reverse" : ""}`}>
             <ReleaseArt release={release} />
             <div className="wk-music-info">
-              {release.eyebrow && <p className="eyebrow">{release.eyebrow}</p>}
               <h2 className="title">{renderTitle(release.title)}</h2>
-              {release.featuredArtist && <p className="feat">{release.featuredArtist}</p>}
               <div className="wk-btn-row">
                 {(release.buttons ?? ["LISTEN NOW"]).map((btn) => (
                   <button key={btn} className="wk-btn" onClick={onListen}>{btn}</button>
@@ -577,12 +548,9 @@ export default function BlueboySite() {
       release: {
         _id: "hero",
         title: content.hero.albumTitle || "LISTEN",
-        eyebrow: content.hero.label,
-        featuredArtist: "",
         featured: true,
         displayOrder: 0,
         coverUrl: "",
-        artClass: "art-morayo",
         listenUrl: content.hero.ctaUrl,
         buttons: [content.hero.ctaText || "LISTEN NOW"],
       },

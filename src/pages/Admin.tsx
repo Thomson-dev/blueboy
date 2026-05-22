@@ -14,26 +14,15 @@ import {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const ART_OPTIONS = [
-  { value: "art-morayo", label: "Morayo (Tan)" },
-  { value: "art-kese",   label: "Kese (Dark)" },
-  { value: "art-pomh",   label: "Piece of My Heart (Cream)" },
-  { value: "art-s2",     label: "S2 (Green)" },
-  { value: "art-tte",    label: "More Love Less Ego (Purple)" },
-  { value: "art-mil",    label: "Made in Lagos (Light)" },
-];
 
 type ActiveSection = "hero" | "releases";
 
 const emptyRelease: Omit<Release, "_id"> = {
   title: "",
-  eyebrow: "",
-  featuredArtist: "",
   featured: false,
   displayOrder: 0,
   coverUrl: "",
   listenUrl: "",
-  artClass: "art-morayo",
   buttons: ["LISTEN NOW"],
 };
 
@@ -682,17 +671,6 @@ function ReleaseForm({
           <input className="adm-input" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="e.g. MORAYO" />
         </div>
         <div className="adm-field">
-          <label className="adm-label">Eyebrow</label>
-          <input className="adm-input" value={form.eyebrow} onChange={(e) => setForm({ ...form, eyebrow: e.target.value })} placeholder="e.g. THE NEW ALBUM" />
-        </div>
-      </div>
-
-      <div className="adm-grid-2">
-        <div className="adm-field">
-          <label className="adm-label">Featured Artist</label>
-          <input className="adm-input" value={form.featuredArtist} onChange={(e) => setForm({ ...form, featuredArtist: e.target.value })} placeholder="e.g. FEAT. BRENT FAIYAZ" />
-        </div>
-        <div className="adm-field">
           <label className="adm-label">Display Order</label>
           <input className="adm-input" type="number" value={form.displayOrder} onChange={(e) => setForm({ ...form, displayOrder: Number(e.target.value) })} />
           <p className="adm-hint">Lower = shown first</p>
@@ -705,24 +683,15 @@ function ReleaseForm({
         <p className="adm-hint">Any streaming URL — we'll fetch all platform links automatically.</p>
       </div>
 
-      <div className="adm-grid-2">
-        <div className="adm-field">
-          <label className="adm-label">Art Placeholder</label>
-          <select className="adm-select" value={form.artClass} onChange={(e) => setForm({ ...form, artClass: e.target.value })}>
-            {ART_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-          </select>
-          <p className="adm-hint">Used when no image is uploaded.</p>
-        </div>
-        <div style={{ display: "flex", alignItems: "flex-start", paddingTop: 24 }}>
-          <div className="adm-checkbox-row">
-            <input
-              type="checkbox"
-              id="featured-chk"
-              checked={form.featured}
-              onChange={(e) => setForm({ ...form, featured: e.target.checked })}
-            />
-            <label htmlFor="featured-chk">Featured Section</label>
-          </div>
+      <div className="adm-field">
+        <div className="adm-checkbox-row">
+          <input
+            type="checkbox"
+            id="featured-chk"
+            checked={form.featured}
+            onChange={(e) => setForm({ ...form, featured: e.target.checked })}
+          />
+          <label htmlFor="featured-chk">Featured Section</label>
         </div>
       </div>
 
@@ -807,7 +776,7 @@ function ReleasesPanel({ token, onSave }: { token: string; onSave: () => void })
 
   const editingRelease = editId ? releases.find((r) => r._id === editId) : null;
   const formInitial: ReleaseFormData = editingRelease
-    ? { title: editingRelease.title, eyebrow: editingRelease.eyebrow, featuredArtist: editingRelease.featuredArtist, featured: editingRelease.featured, displayOrder: editingRelease.displayOrder, coverUrl: editingRelease.coverUrl, listenUrl: editingRelease.listenUrl, artClass: editingRelease.artClass, buttons: [...editingRelease.buttons] }
+    ? { title: editingRelease.title, featured: editingRelease.featured, displayOrder: editingRelease.displayOrder, coverUrl: editingRelease.coverUrl, listenUrl: editingRelease.listenUrl, buttons: [...editingRelease.buttons] }
     : { ...emptyRelease };
 
   return (
@@ -842,11 +811,10 @@ function ReleasesPanel({ token, onSave }: { token: string; onSave: () => void })
                 <div key={r._id} className="adm-release-row">
                   {r.coverUrl
                     ? <img src={r.coverUrl} className="adm-release-thumb" alt={r.title} />
-                    : <div className={`adm-release-thumb-placeholder ${r.artClass}`} />
+                    : <div className="adm-release-thumb-placeholder" />
                   }
                   <div className="adm-release-info">
                     <strong>{r.title || "—"}</strong>
-                    <span>{r.eyebrow}{r.featuredArtist ? ` · ${r.featuredArtist}` : ""}</span>
                   </div>
                   <span className={`adm-badge ${r.featured ? "adm-badge-featured" : "adm-badge-shelf"}`}>
                     {r.featured ? "FEATURED" : "SHELF"}
